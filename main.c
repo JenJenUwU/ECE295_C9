@@ -10,26 +10,29 @@
 #define F_CPU 1000000
 
 #include <avr/io.h>
-#include <stdio.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include "./Si5351.h"
 #include "./twi.h"
 
 
+bool setup_quadrature_outputs(uint32_t freq_hz);
+
 int main(void)
 {
 	bool enabled = true;
+	uint32_t output_frequency_hz = 10000000UL;
 
 	// Initialize the I2C Bus
 	twi_init();
 	// Init PLL
 	si5351_init();
 
-	// Configure PLLA to 800 MHz from 25 MHz crystal: 25 MHz * 32
-	setup_PLL(SI5351_PLL_A, 32, 0, 1);
-	// Configure CLK0 to 10 MHz: 800 MHz / 80
-	setup_clock(SI5351_PLL_A, SI5351_PORT0, 80, 0, 1);
+	// Configure CLK0/CLK1 to output_frequency_hz with 90 degree phase offset
+	if (!setup_quadrature_outputs(output_frequency_hz))
+	{
+		enabled = false;
+	}
 
 	// Reset PLL
 	reset_pll();
@@ -42,3 +45,23 @@ int main(void)
 	}
 }
 
+bool setup_quadrature_outputs(uint32_t freq_hz)
+{
+    if (freq_hz == 0) return false;
+
+    const uint32_t pll_freq_hz = 800000000UL;
+    if ((pll_freq_hz % freq_hz) != 0) return false;
+
+    const uint32_t div = pll_freq_hz / freq_hz;
+    if (div < 4 || div > 2048) return false;
+
+    if (div > 127) return false;
+
+    setup_PLL(SI5351_PLL_A, 32, 0, 1);
+    setup_clock(SI5351_PLL_A, SI5351_PORT0, div, 0, 1);
+    setup_clock(SI5351_PLL_A, SI5351_PORT1, div, 0, 1);
+
+    set_phase((word)div);
+
+    return true;
+}

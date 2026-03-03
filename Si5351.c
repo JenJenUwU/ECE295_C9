@@ -103,7 +103,6 @@ void enableSpreadSpectrum(bool enabled) {
 void si5351_init()
 {
     for(int i = 0; i < 3; ++i) lastRdivValue[i] = 0;
-    byte status = 0;
     /* wait for device to start */
     /*do {
 	    //status = read(SI5351_REGISTER_0_DEVICE_STATUS);
@@ -262,6 +261,7 @@ void reset_pll()
 {
     write(SI5351_REGISTER_177_PLL_RESET, (1 << 7) | (1 << 5));
 }
+
 
 /* 
  * Functions below are not used for the project 
