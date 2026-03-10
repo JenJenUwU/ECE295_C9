@@ -1,67 +1,31 @@
-/*
- * Si5351_SkeletonCode.c
- * This project contains the skeleton code to get started with the 
- * Si5351 PLL chip
- *
- * Created: 2023-02-28 4:39:21 PM
- * Author : StewartPearson
- */ 
-
-#define F_CPU 1000000
+#ifndef F_CPU
+#define F_CPU 1000000UL // Match your actual clock speed
+#endif
 
 #include <avr/io.h>
-#include <stdbool.h>
-#include <stdint.h>
-#include "./Si5351.h"
-#include "./twi.h"
+#include <util/delay.h>
+#include "oled.h"
 
+int main(void) {
+    // 1. Initialize Peripherals
+    oled_spi_init();
+    oled_init();
+    oled_clear();
+    // 2. Configure PA6 (TXEN Switch) as Input
+    DDRA &= ~(1 << PA6); 
 
-bool setup_quadrature_outputs(uint32_t freq_hz);
+    // 3. Static UI Elements (Write once)
+    oled_write_string(0, "SYSTEM STATUS");
+    oled_write_string(1, "-------------");
 
-int main(void)
-{
-	bool enabled = true;
-	uint32_t output_frequency_hz = 10000000UL;
-
-	// Initialize the I2C Bus
-	twi_init();
-	// Init PLL
-	si5351_init();
-
-	// Configure CLK0/CLK1 to output_frequency_hz with 90 degree phase offset
-	if (!setup_quadrature_outputs(output_frequency_hz))
-	{
-		enabled = false;
-	}
-
-	// Reset PLL
-	reset_pll();
-	// Enable outputs
-	enable_clocks(enabled);
-	
-	while(1)
-	{
-
-	}
-}
-
-bool setup_quadrature_outputs(uint32_t freq_hz)
-{
-    if (freq_hz == 0) return false;
-
-    const uint32_t pll_freq_hz = 800000000UL;
-    if ((pll_freq_hz % freq_hz) != 0) return false;
-
-    const uint32_t div = pll_freq_hz / freq_hz;
-    if (div < 4 || div > 2048) return false;
-
-    if (div > 127) return false;
-
-    setup_PLL(SI5351_PLL_A, 32, 0, 1);
-    setup_clock(SI5351_PLL_A, SI5351_PORT0, div, 0, 1);
-    setup_clock(SI5351_PLL_A, SI5351_PORT1, div, 0, 1);
-
-    set_phase((word)div);
-
-    return true;
+    while(1) {
+        // Read PA6: If high (pull-up), switch is ON. If low, switch is OFF.
+        if (PINA & (1 << PA6)) {
+            oled_write_string(4, "TXEN: ENABLED "); 
+        } else {
+            oled_write_string(4, "TXEN: DISABLED"); 
+        }
+        
+        _delay_ms(100); // 10Hz refresh is plenty for a switch
+    }
 }
